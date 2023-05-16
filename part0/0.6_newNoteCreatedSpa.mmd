@@ -2,16 +2,6 @@ sequenceDiagram
     participant browser
     participant server
 
-    browser->>server: GET https://studies.cs.helsinki.fi/exampleapp/spa
-    activate server
-    server-->>browser: SPA HTML document
-    deactivate server
-
-    browser->>server: GET https://studies.cs.helsinki.fi/exampleapp/spa.js
-    activate server
-    server-->>browser: the JavaScript file
-    deactivate server
-
     Note over browser: User fills the form and clicks submit
 
     Note right of browser: JavaScript prevents the form submit, creates a new note, adds it to the local notes list, rerenders the note list, and prepares to send the new note to the server
