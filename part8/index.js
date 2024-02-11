@@ -1,5 +1,7 @@
 const { ApolloServer } = require('@apollo/server')
 const { startStandaloneServer } = require('@apollo/server/standalone')
+const { v1: uuid } = require('uuid')
+
 
 let authors = [
   {
@@ -17,11 +19,11 @@ let authors = [
     id: "afa5b6f1-344d-11e9-a414-719c6709cf3e",
     born: 1821
   },
-  { 
+  {
     name: 'Joshua Kerievsky', // birthyear not known
     id: "afa5b6f2-344d-11e9-a414-719c6709cf3e",
   },
-  { 
+  {
     name: 'Sandi Metz', // birthyear not known
     id: "afa5b6f3-344d-11e9-a414-719c6709cf3e",
   },
@@ -69,7 +71,7 @@ let books = [
     author: 'Joshua Kerievsky',
     id: "afa5de01-344d-11e9-a414-719c6709cf3e",
     genres: ['refactoring', 'patterns']
-  },  
+  },
   {
     title: 'Practical Object-Oriented Design, An Agile Primer Using Ruby',
     published: 2012,
@@ -102,7 +104,7 @@ const typeDefs = `
   type Query {
     bookCount: Int!
     authorCount: Int!
-    allBooks: [Book!]!
+    allBooks(name: String, genre: String): [Book!]!
     allAuthors: [Author!]!
 
   }
@@ -120,18 +122,76 @@ const typeDefs = `
     born: Int!
     bookCount: Int
   }
+
+  type Mutation {
+    addBook(
+      title: String!
+      published: Int!
+      author: String!
+      genres: [String!]
+    ): Book
+    
+    editAuthor (
+      name: String!
+      setBornTo: Int!
+      ): Author
+    }
 `
 
 const resolvers = {
   Query: {
     bookCount: () => books.length,
     authorCount: () => authors.length,
-    allBooks: () => books,
+    allBooks: (root, args) => {
+      if (args.name) {
+        return books.filter(book => book.author === args.name);
+      }
+      if (args.genre) {
+        return books.filter(book => book.genres.includes(args.genre));
+      }
+      return books;
+    },
     allAuthors: () => {
       return authors.map(author => {
+        if (!author.born){
+          return { ...author, born: null }
+        }
         const bookCount = books.filter(book => book.author.toLowerCase() === author.name.toLowerCase()).length;
         return { ...author, bookCount };
       });
+    }
+  },
+
+  Mutation: {
+    addBook: (root, args) => {
+      const authorExists = authors.find(author => author.name === args.author);
+      let authorId;
+
+      if (!authorExists) {
+        authorId = uuid();
+        authors.push({ name: args.author, id: authorId }); 
+      } else {
+        authorId = authorExists.id;
+      }
+      const book = {
+        id: uuid(),
+        title: args.title,
+        published: args.published,
+        author: args.author,
+        genres: args.genres
+      };
+      books = books.concat(book)
+      return book;
+    },
+
+    editAuthor: (root, args) => {
+      const authorIndex = authors.findIndex(a => a.name === args.name);
+      if (authorIndex === -1) {
+        return null; // Author not found, return null
+      }
+      const updatedAuthor = {...author, born: args.setBornTo}
+      authors = authors.map(a => a.name === args.name ? updatedAuthor : a)
+      return updatedAuthor
     }
   }
 }
